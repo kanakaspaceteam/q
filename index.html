@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang='id'>
+<head>
+  <meta charset='UTF-8'/>
+  <meta content='width=device-width, initial-scale=1.0' name='viewport'/>
+  <title>Antrian Kanaka Space</title>
+  <link href='https://i.imgur.com/ghqauwY.png' rel='icon'/>
+  <link href='https://fonts.googleapis.com' rel='preconnect'/>
+  <link crossorigin='anonymous' href='https://fonts.gstatic.com' rel='preconnect'/>
+  <link href='https://fonts.googleapis.com/css2?family=Patrick+Hand+SC&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap' rel='stylesheet'/>
+
+  <style>
+  :root{
+    --coral:#ff8078; --coral-deep:#f16a62; --peach:#ffd9cc; --gold:#f6d143;
+    --cream:#fffaf4; --white:#ffffff; --ink:#211710; --ink-soft:#4a3c32;
+    --line:rgba(33,23,16,0.12); --badge-ink:#7a3f2a;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background:var(--cream); color:var(--ink); font-family:'Plus Jakarta Sans', sans-serif; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  a{ color:inherit; text-decoration:none; }
+  .num{ font-family:'Patrick Hand SC', cursive; font-weight:400; font-variant-numeric:tabular-nums; }
+
+  .board{ max-width:1200px; margin:0 auto; padding:20px 16px 36px; display:flex; flex-direction:column; gap:20px; }
+
+  /* Header */
+  .top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .brand{ display:flex; align-items:center; gap:12px; min-width:0; }
+  .brand img{ width:48px; height:48px; border-radius:50%; flex:none; }
+  .brand .name{ font-weight:800; font-size:clamp(20px,3.2vw,28px); line-height:1.1; letter-spacing:-.01em; }
+  .brand .sub{ display:block; font-size:11.5px; font-weight:600; letter-spacing:.08em; color:var(--ink-soft); margin-top:3px; }
+  .stats{ display:flex; gap:8px; flex-wrap:wrap; }
+  .pill{ font-size:14px; font-weight:600; padding:7px 14px; border-radius:100px; background:var(--peach); color:var(--badge-ink); white-space:nowrap; }
+  .pill .num{ font-size:20px; margin-right:2px; }
+
+  /* Tombol aksi */
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; }
+  .btn{ display:inline-flex; align-items:center; justify-content:center; padding:12px 22px; border-radius:100px; font-weight:700; font-size:15px; border:1.5px solid var(--coral); background:transparent; color:var(--ink); }
+  .btn:hover{ background:var(--peach); }
+  .btn.primary{ background:var(--coral); }
+  .btn.primary:hover{ background:var(--coral-deep); border-color:var(--coral-deep); }
+
+  /* Status bar / timer */
+  .status{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13.5px; font-weight:500; color:var(--ink-soft); }
+  .status .live{ width:9px; height:9px; border-radius:50%; background:var(--gold); flex:none; }
+  .status .sep{ color:var(--line); }
+  .status b{ color:var(--ink); font-weight:700; }
+
+  /* Papan */
+  .main{ display:grid; grid-template-columns:1.15fr 1fr; gap:20px; align-items:start; }
+  .label{ margin:0 0 12px; font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); }
+
+  .now{ background:var(--white); border:2.5px solid var(--coral); border-radius:24px; padding:24px; min-width:0; }
+  .calls{ display:flex; flex-direction:column; gap:16px; }
+  .call{ display:flex; align-items:center; gap:16px; min-width:0; }
+  .call .no{ flex:none; min-width:clamp(64px,12vw,112px); height:clamp(64px,12vw,112px); padding:0 12px; border-radius:20px; background:var(--coral); color:var(--ink); display:flex; align-items:center; justify-content:center; font-family:'Patrick Hand SC', cursive; font-size:clamp(38px,7vw,70px); line-height:1; }
+  .call .nm{ font-weight:800; font-size:clamp(26px,5.4vw,64px); line-height:1.08; letter-spacing:-.02em; min-width:0; overflow-wrap:anywhere; }
+  .call .hint{ display:block; font-size:clamp(13px,1.6vw,15px); font-weight:500; letter-spacing:0; color:var(--ink-soft); margin-top:6px; }
+  .empty{ color:var(--ink-soft); font-size:15px; padding:20px 0; }
+  .empty b{ display:block; font-size:clamp(22px,4vw,30px); font-weight:800; color:var(--ink); margin-bottom:4px; }
+
+  .next{ min-width:0; }
+  .list{ list-style:none; margin:0; padding:0; background:var(--white); border:1px solid var(--line); border-radius:20px; }
+  .list li{ display:flex; align-items:center; gap:14px; padding:12px 16px; border-bottom:1px solid var(--line); min-width:0; }
+  .list li:last-child{ border-bottom:none; }
+  .list .n{ flex:none; width:40px; height:40px; border-radius:50%; background:var(--peach); color:var(--badge-ink); display:flex; align-items:center; justify-content:center; font-family:'Patrick Hand SC', cursive; font-size:24px; }
+  .list li.first .n{ background:var(--coral); color:var(--ink); }
+  .list .t{ font-weight:600; font-size:clamp(17px,2.6vw,24px); line-height:1.2; min-width:0; overflow-wrap:anywhere; }
+  .list .soon{ margin-left:auto; flex:none; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:100px; background:var(--coral); color:var(--ink); }
+  .list .none{ padding:18px 16px; color:var(--ink-soft); font-size:15px; }
+  .more{ margin:10px 4px 0; font-size:13.5px; font-weight:600; color:var(--ink-soft); }
+
+  .reading{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 18px; border-radius:16px; background:var(--peach); color:var(--badge-ink); }
+  .reading strong{ font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin-right:4px; }
+  .chip{ font-weight:600; font-size:15px; padding:4px 14px; border-radius:100px; background:var(--white); color:var(--ink); border:1.5px solid var(--coral); }
+  .chip .num{ font-size:19px; margin-right:4px; }
+
+  .note{ font-size:14px; color:var(--ink-soft); }
+
+  /* Footer */
+  .socials{ display:flex; gap:8px; flex-wrap:wrap; padding-top:16px; border-top:1px solid var(--line); }
+  .socials a{ font-size:13.5px; font-weight:600; padding:8px 16px; border-radius:100px; background:var(--peach); color:var(--badge-ink); }
+  .socials a:hover{ background:var(--coral); color:var(--ink); }
+
+  @media (max-width:860px){
+    .main{ grid-template-columns:1fr; }
+    .now{ padding:18px; border-radius:20px; }
+    .actions .btn{ flex:1 1 0; padding:13px 12px; }
+    .brand img{ width:42px; height:42px; }
+  }
+  </style>
+</head>
+
+<body>
+
+  <div class='board'>
+
+    <div class='top'>
+      <div class='brand'>
+        <img src='https://i.imgur.com/ghqauwY.png' alt='Kanaka Space'/>
+        <div>
+          <div class='name'>Kanaka Space</div>
+          <span class='sub'>ASTROLOGY &amp; TAROT READING</span>
+        </div>
+      </div>
+      <div class='stats'>
+        <span class='pill'><span class='num' id='statWait'>0</span> menunggu</span>
+        <span class='pill'><span class='num' id='statDone'>0</span> selesai</span>
+      </div>
+    </div>
+
+    <div class='actions'>
+      <a class='btn primary' id='lnkForm' href='#' target='_blank' rel='noopener'>Daftar Antrian</a>
+      <a class='btn' id='lnkMenu' href='#' target='_blank' rel='noopener'>Lihat Menu</a>
+    </div>
+
+    <div class='status'>
+      <span class='live'></span>
+      <span>Diperbarui <b id='tAgo'>baru saja</b></span>
+      <span class='sep'>|</span>
+      <span>Refresh dalam <b class='num' id='tNext' style='font-size:17px'>0:30</b></span>
+    </div>
+
+    <div class='main'>
+      <div class='now' aria-live='polite'>
+        <p class='label'>Sedang dipanggil</p>
+        <div class='calls' id='calls'></div>
+      </div>
+      <div class='next'>
+        <p class='label'>Berikutnya</p>
+        <ol class='list' id='next'></ol>
+        <div class='more' id='more'></div>
+      </div>
+    </div>
+
+    <div class='reading' id='reading'></div>
+
+    <div class='note'>Sambil menunggu, silakan santai di cafe. Kami akan menghubungi kamu lewat WhatsApp saat giliranmu tiba.</div>
+
+    <div class='socials'>
+      <a id='lnkIg' href='#' target='_blank' rel='noopener'>Instagram</a>
+      <a id='lnkTt' href='#' target='_blank' rel='noopener'>TikTok</a>
+      <a id='lnkTh' href='#' target='_blank' rel='noopener'>Threads</a>
+      <a id='lnkMail' href='#'>Email</a>
+    </div>
+
+  </div>
+
+  <script>
+  
+
+  /* =====================================================================
+     1) LINK  (ganti tulisan di antara tanda kutip, boleh diisi nanti)
+     ===================================================================== */
+  var LINK = {
+    gform:     "",   // link Google Form pendaftaran antrian
+    menu:      "",   // link menu / price list
+    instagram: "",   // contoh: https://instagram.com/namaakun
+    tiktok:    "",   // contoh: https://tiktok.com/@namaakun
+    threads:   "",   // contoh: https://threads.net/@namaakun
+    email:     ""    // contoh: halo@email.com  (tanpa mailto:)
+  };
+
+  /* =====================================================================
+     2) ANTRIAN  (ubah bagian di antara tanda ` ` saja)
+
+     Satu baris = satu orang, urutan baris = nomor antrian (otomatis).
+     Format:   Nama | status
+
+     Status:
+       (kosong)   = menunggu
+       dipanggil  = sedang dipanggil (tampil besar)
+       reading    = sedang reading
+       selesai    = sudah selesai (hilang dari daftar)
+
+     Contoh:
+       Cakra | dipanggil
+       Dewi
+       Bintang | reading
+       Anindya | selesai
+
+     Baris yang diawali tanda # diabaikan.
+     Setelah mengubah, klik Simpan di Blogger. Layar memuat ulang sendiri.
+     ===================================================================== */
+
+  var ANTRIAN = `
+  Anindya | selesai
+  Bintang | reading
+  Cakra | dipanggil
+  Dewi
+  Elang
+  Fajar & Gita
+  Hana
+  Indra
+  `;
+
+  /* OPSIONAL: baca dari Google Sheet (kolom: No, Nama, Status).
+     Tempel link CSV di sini. Kalau diisi, daftar di atas tidak dipakai. */
+  var CSV_URL = "";
+
+  var BATAS_BERIKUTNYA = 6;   // jumlah nama di daftar "Berikutnya"
+  var REFRESH_DETIK = 30;     // layar memuat ulang tiap sekian detik (mode teks)
+
+  //  ---- jangan ubah di bawah ini ----
+  var $ = function(id){ return document.getElementById(id); };
+  var esc = function(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); };
+
+  function setLink(id, url, mail){
+    var el = $(id);
+    if (!url){ el.setAttribute("href", "#"); return; }
+    el.setAttribute("href", mail ? "mailto:" + url : url);
+  }
+  setLink("lnkForm", LINK.gform);
+  setLink("lnkMenu", LINK.menu);
+  setLink("lnkIg", LINK.instagram);
+  setLink("lnkTt", LINK.tiktok);
+  setLink("lnkTh", LINK.threads);
+  setLink("lnkMail", LINK.email, true);
+
+  function norm(st){
+    st = (st || "").toLowerCase().trim();
+    if (st.indexOf("selesai") === 0 || st === "done") return "selesai";
+    if (st.indexOf("reading") > -1) return "reading";
+    if (st.indexOf("panggil") > -1) return "dipanggil";
+    return "menunggu";
+  }
+
+  function fromText(txt){
+    var out = [], n = 0, lines = txt.split("\n");
+    for (var i = 0; i < lines.length; i++){
+      var ln = lines[i].trim();
+      if (!ln || ln.charAt(0) === "#") continue;
+      var p = ln.split("|");
+      n++;
+      out.push({no:n, nama:p[0].trim(), status:norm(p[1])});
+    }
+    return out;
+  }
+
+  function parseCSV(t){
+    var rows = [], r = [], c = "", q = false;
+    for (var i = 0; i < t.length; i++){
+      var ch = t.charAt(i);
+      if (q){ if (ch === '"'){ if (t.charAt(i+1) === '"'){ c += '"'; i++; } else q = false; } else c += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === ",") { r.push(c); c = ""; }
+      else if (ch === "\n" || ch === "\r"){ if (ch === "\r" && t.charAt(i+1) === "\n") i++; r.push(c); rows.push(r); r = []; c = ""; }
+      else c += ch;
+    }
+    if (c || r.length){ r.push(c); rows.push(r); }
+    return rows;
+  }
+
+  /* ---- timer: kapan terakhir diubah + hitung mundur refresh ---- */
+  var lastChange = Date.now();
+  var nextAt = Date.now() + REFRESH_DETIK * 1000;
+
+  function markChange(data){
+    var sig = JSON.stringify(data);
+    try {
+      if (localStorage.getItem("kq_sig") !== sig){
+        localStorage.setItem("kq_sig", sig);
+        localStorage.setItem("kq_ts", String(Date.now()));
+      }
+      lastChange = parseInt(localStorage.getItem("kq_ts"), 10) || Date.now();
+    } catch (e) { lastChange = Date.now(); }
+  }
+
+  function tick(){
+    var s = Math.max(0, Math.round((Date.now() - lastChange) / 1000));
+    var ago;
+    if (s < 10) ago = "baru saja";
+    else if (s < 60) ago = s + " dtk lalu";
+    else if (s < 3600) ago = Math.floor(s / 60) + " mnt lalu";
+    else ago = Math.floor(s / 3600) + " jam lalu";
+    $("tAgo").textContent = ago;
+    var r = Math.max(0, Math.round((nextAt - Date.now()) / 1000));
+    $("tNext").textContent = Math.floor(r / 60) + ":" + (r % 60 < 10 ? "0" : "") + (r % 60);
+  }
+  setInterval(tick, 1000);
+
+  /* ---- tampilan ---- */
+  function render(data){
+    markChange(data);
+    var calling = data.filter(function(x){ return x.status === "dipanggil"; });
+    var reading = data.filter(function(x){ return x.status === "reading"; });
+    var waiting = data.filter(function(x){ return x.status === "menunggu"; });
+    var done    = data.filter(function(x){ return x.status === "selesai"; });
+
+    $("statWait").textContent = waiting.length;
+    $("statDone").textContent = done.length;
+
+    $("calls").innerHTML = calling.length
+      ? calling.map(function(x){ return "<div class='call'><div class='no'>" + x.no + "</div><div class='nm'>" + esc(x.nama) + "<span class='hint'>Silakan menuju meja reading</span></div></div>"; }).join("")
+      : "<div class='empty'><b>Belum ada panggilan</b>Giliran berikutnya akan muncul di sini.</div>";
+
+    var shown = waiting.slice(0, BATAS_BERIKUTNYA);
+    $("next").innerHTML = shown.length
+      ? shown.map(function(x, i){ return "<li" + (i === 0 ? " class='first'" : "") + "><span class='n'>" + x.no + "</span><span class='t'>" + esc(x.nama) + "</span>" + (i === 0 ? "<span class='soon'>Siap-siap</span>" : "") + "</li>"; }).join("")
+      : "<li class='none'>Antrian kosong</li>";
+    $("more").textContent = waiting.length > BATAS_BERIKUTNYA ? "+ " + (waiting.length - BATAS_BERIKUTNYA) + " antrian lainnya" : "";
+
+    $("reading").innerHTML = "<strong>Sedang reading</strong>" + (reading.length
+      ? reading.map(function(x){ return "<span class='chip'><span class='num'>" + x.no + "</span>" + esc(x.nama) + "</span>"; }).join("")
+      : "<span style='font-size:14px'>Meja kosong</span>");
+    tick();
+  }
+
+  function loadCSV(){
+    nextAt = Date.now() + 10000;
+    fetch(CSV_URL + (CSV_URL.indexOf("?") > -1 ? "&" : "?") + "t=" + Date.now(), {cache:"no-store"})
+      .then(function(r){ return r.text(); })
+      .then(function(t){
+        var rows = parseCSV(t).slice(1).filter(function(r){ return r[1] && r[1].trim(); });
+        render(rows.map(function(r){ return {no:parseInt(r[0], 10) || 0, nama:r[1].trim(), status:norm(r[2])}; }));
+      })
+      .catch(function(){});
+  }
+
+  if (CSV_URL){ loadCSV(); setInterval(loadCSV, 10000); }
+  else { render(fromText(ANTRIAN)); setTimeout(function(){ location.reload(); }, REFRESH_DETIK * 1000); }
+
+  
+  </script>
+</body>
+</html>
