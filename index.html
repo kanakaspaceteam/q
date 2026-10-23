@@ -27,7 +27,7 @@
   .top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
   .brand{ display:flex; align-items:center; gap:12px; min-width:0; }
   .brand img{ width:48px; height:48px; border-radius:50%; flex:none; }
-  .brand .name{ font-weight:800; font-size:clamp(20px,3.2vw,28px); line-height:1.1; letter-spacing:-.01em; }
+  .brand .name{ font-family:'Patrick Hand SC', cursive; font-weight:400; font-size:clamp(28px,4.4vw,38px); line-height:1; letter-spacing:.3px; }
   .brand .sub{ display:block; font-size:11.5px; font-weight:600; letter-spacing:.08em; color:var(--ink-soft); margin-top:3px; }
   .stats{ display:flex; gap:8px; flex-wrap:wrap; }
   .pill{ font-size:14px; font-weight:600; padding:7px 14px; border-radius:100px; background:var(--peach); color:var(--badge-ink); white-space:nowrap; }
@@ -43,7 +43,6 @@
   /* Status bar / timer */
   .status{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13.5px; font-weight:500; color:var(--ink-soft); }
   .status .live{ width:9px; height:9px; border-radius:50%; background:var(--gold); flex:none; }
-  .status .sep{ color:var(--line); }
   .status b{ color:var(--ink); font-weight:700; }
 
   /* Papan */
@@ -78,7 +77,12 @@
   .note{ font-size:14px; color:var(--ink-soft); }
 
   /* Footer */
-  .socials{ display:flex; gap:8px; flex-wrap:wrap; padding-top:16px; border-top:1px solid var(--line); }
+  .footer{ display:flex; flex-direction:column; align-items:center; gap:14px; padding-top:20px; border-top:1px solid var(--line); text-align:center; }
+  .socials{ display:flex; justify-content:center; gap:8px; flex-wrap:wrap; }
+  .contact{ font-size:13.5px; font-weight:500; color:var(--ink-soft); }
+  .contact a{ font-weight:600; color:var(--ink); }
+  .contact a:hover{ text-decoration:underline; }
+  .contact .bar{ margin:0 8px; color:var(--line); }
   .socials a{ font-size:13.5px; font-weight:600; padding:8px 16px; border-radius:100px; background:var(--peach); color:var(--badge-ink); }
   .socials a:hover{ background:var(--coral); color:var(--ink); }
 
@@ -116,9 +120,8 @@
 
     <div class='status'>
       <span class='live'></span>
-      <span>Diperbarui <b id='tAgo'>baru saja</b></span>
-      <span class='sep'>|</span>
-      <span>Refresh dalam <b class='num' id='tNext' style='font-size:17px'>0:30</b></span>
+      <span>Sejak update terakhir</span>
+      <b class='num' id='tAgo' style='font-size:20px'>00:00</b>
     </div>
 
     <div class='main'>
@@ -137,11 +140,15 @@
 
     <div class='note'>Sambil menunggu, silakan santai di cafe. Kami akan menghubungi kamu lewat WhatsApp saat giliranmu tiba.</div>
 
-    <div class='socials'>
-      <a id='lnkIg' href='#' target='_blank' rel='noopener'>Instagram</a>
-      <a id='lnkTt' href='#' target='_blank' rel='noopener'>TikTok</a>
-      <a id='lnkTh' href='#' target='_blank' rel='noopener'>Threads</a>
-      <a id='lnkMail' href='#'>Email</a>
+    <div class='footer'>
+      <div class='socials'>
+        <a id='lnkIg' href='#' target='_blank' rel='noopener'>Instagram</a>
+        <a id='lnkTt' href='#' target='_blank' rel='noopener'>TikTok</a>
+        <a id='lnkTh' href='#' target='_blank' rel='noopener'>Threads</a>
+      </div>
+      <div class='contact'>
+        <a href='https://kanakaspace.netlify.app' target='_blank' rel='noopener'>kanakaspace.netlify.app</a><span class='bar'>|</span><a href='mailto:kanakaspace@gmail.com'>kanakaspace@gmail.com</a>
+      </div>
     </div>
 
   </div>
@@ -157,8 +164,7 @@
     menu:      "",   // link menu / price list
     instagram: "",   // contoh: https://instagram.com/namaakun
     tiktok:    "",   // contoh: https://tiktok.com/@namaakun
-    threads:   "",   // contoh: https://threads.net/@namaakun
-    email:     ""    // contoh: halo@email.com  (tanpa mailto:)
+    threads:   ""    // contoh: https://threads.net/@namaakun
   };
 
   /* =====================================================================
@@ -180,7 +186,7 @@
        Anindya | selesai
 
      Baris yang diawali tanda # diabaikan.
-     Setelah mengubah, klik Simpan di Blogger. Layar memuat ulang sendiri.
+     Setelah mengubah di GitHub, klik Commit changes. Layar memuat ulang sendiri.
      ===================================================================== */
 
   var ANTRIAN = `
@@ -215,7 +221,6 @@
   setLink("lnkIg", LINK.instagram);
   setLink("lnkTt", LINK.tiktok);
   setLink("lnkTh", LINK.threads);
-  setLink("lnkMail", LINK.email, true);
 
   function norm(st){
     st = (st || "").toLowerCase().trim();
@@ -251,31 +256,26 @@
     return rows;
   }
 
-  /* ---- timer: kapan terakhir diubah + hitung mundur refresh ---- */
+  /* ---- timer: berapa lama sejak "sedang dipanggil" / "sedang reading" terakhir berubah ---- */
   var lastChange = Date.now();
-  var nextAt = Date.now() + REFRESH_DETIK * 1000;
 
   function markChange(data){
-    var sig = JSON.stringify(data);
+    var key = JSON.stringify(data.filter(function(x){ return x.status === "dipanggil" || x.status === "reading"; })
+                                 .map(function(x){ return [x.no, x.nama, x.status]; }));
     try {
-      if (localStorage.getItem("kq_sig") !== sig){
-        localStorage.setItem("kq_sig", sig);
+      if (localStorage.getItem("kq_sig") !== key){
+        localStorage.setItem("kq_sig", key);
         localStorage.setItem("kq_ts", String(Date.now()));
       }
       lastChange = parseInt(localStorage.getItem("kq_ts"), 10) || Date.now();
     } catch (e) { lastChange = Date.now(); }
   }
 
+  function two(n){ return (n < 10 ? "0" : "") + n; }
   function tick(){
-    var s = Math.max(0, Math.round((Date.now() - lastChange) / 1000));
-    var ago;
-    if (s < 10) ago = "baru saja";
-    else if (s < 60) ago = s + " dtk lalu";
-    else if (s < 3600) ago = Math.floor(s / 60) + " mnt lalu";
-    else ago = Math.floor(s / 3600) + " jam lalu";
-    $("tAgo").textContent = ago;
-    var r = Math.max(0, Math.round((nextAt - Date.now()) / 1000));
-    $("tNext").textContent = Math.floor(r / 60) + ":" + (r % 60 < 10 ? "0" : "") + (r % 60);
+    var s = Math.max(0, Math.floor((Date.now() - lastChange) / 1000));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), d = s % 60;
+    $("tAgo").textContent = (h ? h + ":" + two(m) : two(m)) + ":" + two(d);
   }
   setInterval(tick, 1000);
 
@@ -307,7 +307,6 @@
   }
 
   function loadCSV(){
-    nextAt = Date.now() + 10000;
     fetch(CSV_URL + (CSV_URL.indexOf("?") > -1 ? "&" : "?") + "t=" + Date.now(), {cache:"no-store"})
       .then(function(r){ return r.text(); })
       .then(function(t){
