@@ -34,13 +34,12 @@
   .brand .name{ font-family:'Patrick Hand SC',cursive; font-size:clamp(28px,4.4vw,38px); line-height:1; }
   .brand .sub{ display:block; font-size:13px; font-weight:500; color:var(--ink-soft); margin-top:3px; }
 
-  /* Aksi: Antre, Menu, jumlah menunggu */
+  /* Aksi */
   .actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .btn{ display:inline-flex; align-items:center; justify-content:center; min-height:48px; padding:0 24px; border-radius:100px; font-weight:700; font-size:15px; border:1.5px solid var(--coral); background:transparent; color:var(--ink); transition:background .2s; }
   .btn:hover{ background:var(--peach); }
   .btn.primary{ background:var(--coral); }
   .btn.primary:hover{ background:var(--coral-deep); border-color:var(--coral-deep); }
-
 
   /* Papan */
   .main{ display:grid; grid-template-columns:2.2fr 1fr; gap:20px; align-items:start; }
@@ -61,29 +60,17 @@
   .call .nm{ font-weight:800; font-size:clamp(26px,5.5vw,64px); line-height:1.1; letter-spacing:-.02em; min-width:0; overflow-wrap:anywhere; }
   .call .hint{ display:block; font-size:clamp(13px,1.6vw,16px); font-weight:500; letter-spacing:0; color:var(--ink-soft); margin-top:6px; }
 
-  .timerrow{ margin-top:18px; }
-  .timer{ font-family:'Patrick Hand SC',cursive; font-variant-numeric:tabular-nums; font-size:clamp(48px,8vw,80px); line-height:1; }
-  .timercap{ font-size:13px; font-weight:600; color:var(--ink-soft); }
   .bar{ position:relative; height:10px; border-radius:100px; background:rgba(33,23,16,.08); margin-top:14px; }
-  .bar .fill{ height:100%; width:0; border-radius:100px; background:var(--green); transition:width .9s linear,background .4s; }
+  .bar .fill{ height:100%; width:0; border-radius:100px; background:var(--green); animation:barfill 300s linear forwards, barcolor 300s linear forwards; }
+  @keyframes barfill{ from{ width:0; } to{ width:100%; } }
+  @keyframes barcolor{ 0%,59.9%{ background:var(--green); } 60%,96.6%{ background:var(--warn); } 96.7%,100%{ background:var(--red); } }
   .bar .tick{ position:absolute; top:-4px; width:2px; height:18px; background:var(--ink-soft); opacity:.5; }
   .barlabels{ position:relative; height:18px; margin-top:6px; font-size:12px; font-weight:600; color:var(--ink-soft); }
   .barlabels span{ position:absolute; transform:translateX(-50%); }
   .barlabels span:first-child{ transform:none; }
   .barlabels span:last-child{ transform:translateX(-100%); }
 
-  .callbox.lv1,.callbox.lv2{ background:var(--warn-bg); border-color:var(--warn); }
-  .callbox.lv1 .timer,.callbox.lv2 .timer{ animation:softblink 1.8s ease-in-out infinite; }
-  .callbox.lv1 .fill,.callbox.lv2 .fill{ background:var(--warn); }
-  @keyframes softblink{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
-  .callbox.lv3{ background:var(--red-bg); border-color:var(--red); }
-  .callbox.lv3 .timer{ color:var(--red); animation:fastblink .8s ease-in-out infinite; }
-  .callbox.lv3 .fill{ background:var(--red); }
-  @keyframes fastblink{ 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
-  .callbox.lv4{ background:var(--red-bg); border-color:var(--red); }
-  .callbox.lv4 .timer{ color:var(--red); }
-  .callbox.lv4 .fill{ background:var(--red); }
-  @media (prefers-reduced-motion:reduce){ .callbox .timer,.callbox .dots span{ animation-duration:2.4s !important; } }
+  @media (prefers-reduced-motion:reduce){ .callbox .dots span{ animation-duration:2.4s !important; } }
 
   .readbox{ padding:24px; border-radius:22px; background:var(--peach); }
   .readbox b{ display:block; font-size:clamp(26px,5vw,48px); font-weight:800; line-height:1.1; letter-spacing:-.02em; }
@@ -135,7 +122,6 @@
     .call{ gap:12px; }
     .call .no{ min-width:60px; height:60px; border-radius:16px; font-size:38px; }
     .call .nm{ font-size:28px; }
-    .timer{ font-size:56px; }
   }
   </style>
 </head>
@@ -203,14 +189,12 @@
 
      Kode (boleh dikosongkan = menunggu):
        (kosong)  = menunggu antrean
-       1         = sedang memanggil, timer jalan mulai dari 00:00
+       1         = sedang dipanggil. Bar di bawah nama jalan otomatis 5 menit
+                   (hijau, kuning di menit ke-3, merah di 4:50).
        0         = sedang reading (nama tidak ditampilkan, cuma tulisan "Sedang reading")
 
      Kalau sudah selesai, HAPUS saja barisnya.
      Lalu ketik 1 di belakang nama berikutnya.
-
-     Opsional: kalau telat update, tulis jam panggilan supaya timer akurat.
-       Contoh:  Cakra | 1 21:30
 
      Baris yang diawali tanda # diabaikan. */
 
@@ -227,13 +211,7 @@
   var CSV_URL = "";
 
   var BATAS_BERIKUTNYA = 6;   // jumlah nama di daftar "Berikutnya"
-  var REFRESH_DETIK = 30;     // cek pembaruan daftar tiap sekian detik
-
-  /* Batas timer (detik) */
-  var T_WARNING = 180;   // 3 menit -> kuning + angka kedip pelan
-  var T_KEDIP   = 240;   // 4 menit -> tetap kedip pelan
-  var T_MERAH   = 290;   // 4:50    -> merah + kedip cepat
-  var T_HABIS   = 300;   // 5 menit -> merah diam
+  var REFRESH_DETIK = 30;     // cek pembaruan tiap sekian detik
 
   //  ---- jangan ubah di bawah ini ----
   var $ = function(id){ return document.getElementById(id); };
@@ -256,15 +234,6 @@
     return "menunggu";
   }
 
-  function parseTime(st){
-    var m = /(\d{1,2})[:.](\d{2})/.exec(st || "");
-    if (!m) return 0;
-    var d = new Date();
-    d.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
-    if (d.getTime() > Date.now() + 60000) d.setDate(d.getDate() - 1);
-    return d.getTime();
-  }
-
   function fromText(txt){
     var out = [], n = 0, lines = txt.split("\n");
     for (var i = 0; i < lines.length; i++){
@@ -272,7 +241,7 @@
       if (!ln || ln.charAt(0) === "#") continue;
       var p = ln.split("|");
       n++;
-      out.push({no:n, nama:p[0].trim(), status:norm(p[1]), jam:parseTime(p[1])});
+      out.push({no:n, nama:p[0].trim(), status:norm(p[1])});
     }
     return out;
   }
@@ -291,52 +260,19 @@
     return rows;
   }
 
-  /* waktu mulai dipanggil diingat per NAMA supaya timer tidak reset */
-  var memStarts = {};
-  function callStarts(calling){
-    var saved = {};
-    try { saved = JSON.parse(localStorage.getItem("kq_calls") || "{}") || {}; } catch (e) { saved = {}; }
-    var fresh = {};
-    for (var i = 0; i < calling.length; i++){
-      var x = calling[i], key = x.nama.toLowerCase();
-      fresh[key] = x.jam || memStarts[key] || saved[key] || Date.now();
-      x.start = fresh[key];
-    }
-    memStarts = fresh;
-    try { localStorage.setItem("kq_calls", JSON.stringify(fresh)); } catch (e) {}
-  }
-
-  function two(n){ return (n < 10 ? "0" : "") + n; }
-  function fmt(s){ return two(Math.floor(s / 60)) + ":" + two(s % 60); }
-
-  function tick(){
-    var boxes = document.querySelectorAll(".callbox");
-    for (var i = 0; i < boxes.length; i++){
-      var b = boxes[i];
-      var s = Math.max(0, Math.floor((Date.now() - parseInt(b.getAttribute("data-start"), 10)) / 1000));
-      var lv = s >= T_HABIS ? 4 : s >= T_MERAH ? 3 : s >= T_KEDIP ? 2 : s >= T_WARNING ? 1 : 0;
-      var cls = "callbox" + (lv ? " lv" + lv : "");
-      if (b.className !== cls) b.className = cls;
-      b.querySelector(".timer").textContent = fmt(s);
-      b.querySelector(".fill").style.width = Math.min(100, s / T_HABIS * 100) + "%";
-    }
-  }
-  setInterval(tick, 1000);
-
+  var lastCalls = "";
   function render(data){
     var calling = data.filter(function(x){ return x.status === "dipanggil"; });
     var reading = data.filter(function(x){ return x.status === "reading"; });
     var waiting = data.filter(function(x){ return x.status === "menunggu"; });
 
-    callStarts(calling);
 
     var html = "";
     if (calling.length){
       html = calling.map(function(x){
-        return "<div class='callbox' data-start='" + x.start + "'>" +
+        return "<div class='callbox'>" +
           "<div class='head'>Sedang memanggil<span class='dots'><span>.</span><span>.</span><span>.</span><span>.</span></span></div>" +
           "<div class='call'><div class='no'>" + x.no + "</div><div class='nm'>" + esc(x.nama) + "<span class='hint'>Silakan menuju meja reading</span></div></div>" +
-          "<div class='timerrow'><div class='timercap'>Sudah menunggu</div><div class='timer'>00:00</div></div>" +
           "<div class='bar'><div class='fill'></div><i class='tick' style='left:60%'></i><i class='tick' style='left:100%;margin-left:-2px'></i></div>" +
           "<div class='barlabels'><span>0</span><span style='left:60%'>3 mnt</span><span style='left:100%'>5 mnt</span></div>" +
           "</div>";
@@ -347,15 +283,13 @@
     } else {
       html = "<div class='empty'><b>Belum ada panggilan</b>Giliran berikutnya akan muncul di sini.</div>";
     }
-    $("calls").innerHTML = html;
+    if (html !== lastCalls){ lastCalls = html; $("calls").innerHTML = html; }
 
     var shown = waiting.slice(0, BATAS_BERIKUTNYA);
     $("next").innerHTML = shown.length
       ? shown.map(function(x, i){ return "<li" + (i === 0 ? " class='first'" : "") + "><span class='n'>" + x.no + "</span><span class='t'>" + esc(x.nama) + "</span>" + (i === 0 ? "<span class='soon'>Siap-siap</span>" : "") + "</li>"; }).join("")
       : "<li class='none'>Antrean kosong</li>";
     $("more").textContent = waiting.length > BATAS_BERIKUTNYA ? "+ " + (waiting.length - BATAS_BERIKUTNYA) + " antrean lainnya" : "";
-
-    tick();
   }
 
   function loadCSV(){
@@ -363,7 +297,7 @@
       .then(function(r){ return r.text(); })
       .then(function(t){
         var rows = parseCSV(t).slice(1).filter(function(r){ return r[1] && r[1].trim(); });
-        render(rows.map(function(r){ return {no:parseInt(r[0], 10) || 0, nama:r[1].trim(), status:norm(r[2]), jam:parseTime(r[2])}; }));
+        render(rows.map(function(r){ return {no:parseInt(r[0], 10) || 0, nama:r[1].trim(), status:norm(r[2])}; }));
       })
       .catch(function(){});
   }
@@ -371,7 +305,7 @@
   var lastText = ANTRIAN;
   function checkUpdate(){
     if (CSV_URL){ loadCSV(); return; }
-    fetch(location.href.split("#")[0].split("?")[0] + "?t=" + Date.now(), {cache:"no-store"})
+    fetch(location.pathname + "?t=" + Date.now(), {cache:"no-store"})
       .then(function(r){ return r.text(); })
       .then(function(t){
         var m = /var ANTRIAN = `([\s\S]*?)`;/.exec(t);
@@ -382,9 +316,7 @@
 
   if (CSV_URL){ loadCSV(); setInterval(loadCSV, 10000); }
   else { render(fromText(ANTRIAN)); setInterval(checkUpdate, REFRESH_DETIK * 1000); }
-
-  document.addEventListener("visibilitychange", function(){ if (!document.hidden){ tick(); checkUpdate(); } });
-  window.addEventListener("pageshow", function(){ tick(); checkUpdate(); });
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) checkUpdate(); });
 
   </script>
 </body>
