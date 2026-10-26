@@ -49,6 +49,8 @@
   .calls{ display:flex; flex-direction:column; gap:16px; }
 
   .callbox{ border-radius:22px; padding:22px; background:var(--cream); border:2px solid var(--line); transition:background .4s,border-color .4s; }
+  .callbox.s-yellow{ background:var(--warn-bg); border-color:var(--warn); }
+  .callbox.s-red{ background:var(--red-bg); border-color:var(--red); }
   .callbox .head{ margin-bottom:14px; font-weight:800; font-size:clamp(20px,3vw,30px); }
   .callbox .head .dots span{ animation:dotpulse 1.4s infinite; opacity:.2; }
   .callbox .head .dots span:nth-child(2){ animation-delay:.2s; }
@@ -61,9 +63,9 @@
   .call .hint{ display:block; font-size:clamp(13px,1.6vw,16px); font-weight:500; letter-spacing:0; color:var(--ink-soft); margin-top:6px; }
 
   .bar{ position:relative; height:10px; border-radius:100px; background:rgba(33,23,16,.08); margin-top:14px; }
-  .bar .fill{ height:100%; width:0; border-radius:100px; background:var(--green); animation:barfill 300s linear forwards, barcolor 300s linear forwards; }
-  @keyframes barfill{ from{ width:0; } to{ width:100%; } }
-  @keyframes barcolor{ 0%,59.9%{ background:var(--green); } 60%,96.6%{ background:var(--warn); } 96.7%,100%{ background:var(--red); } }
+  .bar .fill{ height:100%; width:0; border-radius:100px; background:var(--green); }
+  .bar .fill.y{ background:var(--warn); }
+  .bar .fill.r{ background:var(--red); }
   .bar .tick{ position:absolute; top:-4px; width:2px; height:18px; background:var(--ink-soft); opacity:.5; }
   .barlabels{ position:relative; height:18px; margin-top:6px; font-size:12px; font-weight:600; color:var(--ink-soft); }
   .barlabels span{ position:absolute; transform:translateX(-50%); }
@@ -185,21 +187,34 @@
   /* 2) DAFTAR ANTREAN -- BAGIAN INI SAJA YANG PERLU KAMU EDIT
 
      Satu baris = satu orang. Urutan baris = nomor antrean (otomatis).
-     Format:   Nama | kode
+     Format:   Nama | kode | jam mulai (WIB)
 
      Kode (boleh dikosongkan = menunggu):
        (kosong)  = menunggu antrean
-       1         = sedang dipanggil. Bar di bawah nama jalan otomatis 5 menit
-                   (hijau, kuning di menit ke-3, merah di 4:50).
+       1         = sedang dipanggil
        0         = sedang reading (nama tidak ditampilkan, cuma tulisan "Sedang reading")
 
+     JAM MULAI (khusus kode 1), format 24 jam WIB:  JJ:MM:DD  atau  JJ:MM
+       Contoh:  Dewi | 1 | 23:42:00
+       Artinya: hitungan 5 menit Dewi mulai TEPAT jam 23:42:00 WIB.
+       Ketik jam yang SEDIKIT DI DEPAN jam asli (kasih jeda buat commit,
+       deploy GitHub, dan refresh di HP pengunjung), jadi semua device
+       menampilkan bar yang sama persis.
+
+       Sebelum jam mulai : bar kosong
+       0:00 - 3:00       : hijau
+       3:00 - 4:50       : kuning
+       4:50 - 5:00       : merah
+       Lewat 5:00        : merah penuh (tertahan sampai kamu update)
+
+     Kalau jam mulai dikosongkan, bar tidak ditampilkan.
      Kalau sudah selesai, HAPUS saja barisnya.
-     Lalu ketik 1 di belakang nama berikutnya.
+     Lalu ketik  1 | jam mulai  di belakang nama berikutnya.
 
      Baris yang diawali tanda # diabaikan. */
 
   var ANTRIAN = `
-  Dewi | 1
+  Dewi | 1 | 23:43:00
   Elang
   Fajar & Gita
   Hana
@@ -207,11 +222,15 @@
   Hana & Junet
   `;
 
-  /* OPSIONAL: baca dari Google Sheet (kolom: No, Nama, Status). Tempel link CSV di sini. */
+  /* OPSIONAL: baca dari Google Sheet (kolom: No, Nama, Status, Mulai). Tempel link CSV di sini. */
   var CSV_URL = "";
 
   var BATAS_BERIKUTNYA = 6;   // jumlah nama di daftar "Berikutnya"
   var REFRESH_DETIK = 30;     // cek pembaruan tiap sekian detik
+
+  var DURASI   = 300;   // detik, total waktu menunggu setelah dipanggil
+  var KUNING   = 180;   // detik, bar berubah kuning
+  var MERAH    = 290;   // detik, bar berubah merah
 
   //  ---- jangan ubah di bawah ini ----
   var $ = function(id){ return document.getElementById(id); };
@@ -224,6 +243,54 @@
   setLink("lnkTt", LINK.tiktok);
   setLink("lnkTh", LINK.threads);
 
+  /* ---------- JAM: sinkron ke server, patokan WIB ---------- */
+  var WIB = 7 * 3600000;
+  var clockOffset = 0;      // selisih (jam server - jam device), ms
+  var bestRtt = Infinity;
+
+  function nowSync(){ return Date.now() + clockOffset; }
+
+  function syncClock(){
+    var t0 = Date.now();
+    fetch(location.pathname + "?sync=" + t0, {method:"HEAD", cache:"no-store"})
+      .then(function(r){
+        var t1 = Date.now();
+        var d = r.headers.get("date");
+        if (!d) return;
+        var rtt = t1 - t0;
+        if (rtt > bestRtt + 1500) return;            // sampel lambat, abaikan
+        var age = parseInt(r.headers.get("age"), 10) || 0;
+        var server = Date.parse(d) + age * 1000 + 500 + rtt / 2;   // +500 = header dibulatkan ke detik
+        if (isNaN(server)) return;
+        if (rtt <= bestRtt || Math.abs((server - t1) - clockOffset) > 3000){
+          bestRtt = rtt;
+          clockOffset = server - t1;
+        }
+      })
+      .catch(function(){});
+  }
+
+  // "21:11:00" / "21:11" -> epoch ms (WIB, hari ini). Kosong/salah -> 0
+  function parseWIB(s){
+    var m = /^\s*(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?\s*$/.exec(s || "");
+    if (!m) return 0;
+    var h = +m[1], mi = +m[2], se = +(m[3] || 0);
+    if (h > 23 || mi > 59 || se > 59) return 0;
+    var w = new Date(nowSync() + WIB);                // getter UTC = jam dinding WIB
+    var t = Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate(), h, mi, se) - WIB;
+    var now = nowSync();
+    if (t - now > 12 * 3600000) t -= 86400000;        // lewat tengah malam
+    else if (now - t > 12 * 3600000) t += 86400000;
+    return t;
+  }
+
+  function pad(n){ return (n < 10 ? "0" : "") + n; }
+  function fmtLabel(s){
+    var m = /(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?/.exec(s);
+    return m ? pad(+m[1]) + ":" + m[2] + ":" + (m[3] || "00") : "";
+  }
+
+  /* ---------- DATA ---------- */
   function norm(st){
     st = (st || "").toLowerCase().trim();
     if (/^1(\s|$)/.test(st)) return "dipanggil";
@@ -241,7 +308,7 @@
       if (!ln || ln.charAt(0) === "#") continue;
       var p = ln.split("|");
       n++;
-      out.push({no:n, nama:p[0].trim(), status:norm(p[1])});
+      out.push({no:n, nama:p[0].trim(), status:norm(p[1]), mulai:(p[2] || "").trim()});
     }
     return out;
   }
@@ -260,21 +327,25 @@
     return rows;
   }
 
+  /* ---------- RENDER ---------- */
   var lastCalls = "";
   function render(data){
     var calling = data.filter(function(x){ return x.status === "dipanggil"; });
     var reading = data.filter(function(x){ return x.status === "reading"; });
     var waiting = data.filter(function(x){ return x.status === "menunggu"; });
 
-
     var html = "";
     if (calling.length){
       html = calling.map(function(x){
-        return "<div class='callbox'>" +
+        var label = fmtLabel(x.mulai);
+        var timed = !!label;
+        return "<div class='callbox'" + (timed ? " data-mulai='" + esc(label) + "'" : "") + ">" +
           "<div class='head'>Sedang memanggil<span class='dots'><span>.</span><span>.</span><span>.</span><span>.</span></span></div>" +
           "<div class='call'><div class='no'>" + x.no + "</div><div class='nm'>" + esc(x.nama) + "<span class='hint'>Silakan menuju meja reading</span></div></div>" +
-          "<div class='bar'><div class='fill'></div><i class='tick' style='left:60%'></i><i class='tick' style='left:100%;margin-left:-2px'></i></div>" +
-          "<div class='barlabels'><span>0</span><span style='left:60%'>3 mnt</span><span style='left:100%'>5 mnt</span></div>" +
+          (timed
+            ? "<div class='bar'><div class='fill'></div><i class='tick' style='left:60%'></i><i class='tick' style='left:100%;margin-left:-2px'></i></div>" +
+              "<div class='barlabels'><span>0</span><span style='left:60%'>3 mnt</span><span style='left:100%'>5 mnt</span></div>"
+            : "") +
           "</div>";
       }).join("");
       if (reading.length) html += "<div class='readnote'>Meja reading juga sedang terisi</div>";
@@ -283,7 +354,7 @@
     } else {
       html = "<div class='empty'><b>Belum ada panggilan</b>Giliran berikutnya akan muncul di sini.</div>";
     }
-    if (html !== lastCalls){ lastCalls = html; $("calls").innerHTML = html; }
+    if (html !== lastCalls){ lastCalls = html; $("calls").innerHTML = html; tick(); }
 
     var shown = waiting.slice(0, BATAS_BERIKUTNYA);
     $("next").innerHTML = shown.length
@@ -292,12 +363,39 @@
     $("more").textContent = waiting.length > BATAS_BERIKUTNYA ? "+ " + (waiting.length - BATAS_BERIKUTNYA) + " antrean lainnya" : "";
   }
 
+  /* ---------- BAR: dihitung dari jam server, bukan dari kapan halaman dibuka ---------- */
+  function tick(){
+    var boxes = document.querySelectorAll(".callbox[data-mulai]");
+    if (!boxes.length) return;
+    var now = nowSync();
+    for (var i = 0; i < boxes.length; i++){
+      var box = boxes[i], label = box.getAttribute("data-mulai");
+      var start = parseWIB(label);
+      var fill = box.querySelector(".fill");
+      var el = (now - start) / 1000, w, cls = "", boxCls = "callbox";
+
+      if (!start){ continue; }
+      if (el < 0){
+        w = 0;
+      } else if (el >= DURASI){
+        w = 100; cls = "r"; boxCls += " s-red";
+      } else {
+        w = el / DURASI * 100;
+        if (el >= MERAH){ cls = "r"; boxCls += " s-red"; }
+        else if (el >= KUNING){ cls = "y"; boxCls += " s-yellow"; }
+      }
+      fill.style.width = w + "%";
+      if (fill.className !== "fill" + (cls ? " " + cls : "")) fill.className = "fill" + (cls ? " " + cls : "");
+      if (box.className !== boxCls) box.className = boxCls;
+    }
+  }
+
   function loadCSV(){
     fetch(CSV_URL + (CSV_URL.indexOf("?") > -1 ? "&" : "?") + "t=" + Date.now(), {cache:"no-store"})
       .then(function(r){ return r.text(); })
       .then(function(t){
         var rows = parseCSV(t).slice(1).filter(function(r){ return r[1] && r[1].trim(); });
-        render(rows.map(function(r){ return {no:parseInt(r[0], 10) || 0, nama:r[1].trim(), status:norm(r[2])}; }));
+        render(rows.map(function(r){ return {no:parseInt(r[0], 10) || 0, nama:r[1].trim(), status:norm(r[2]), mulai:(r[3] || "").trim()}; }));
       })
       .catch(function(){});
   }
@@ -314,9 +412,15 @@
       .catch(function(){});
   }
 
+  // sinkron jam dulu, baru render supaya bar langsung benar
+  syncClock();
+  setTimeout(syncClock, 3000);
+  setInterval(syncClock, 120000);
+  setInterval(tick, 250);
+
   if (CSV_URL){ loadCSV(); setInterval(loadCSV, 10000); }
   else { render(fromText(ANTRIAN)); setInterval(checkUpdate, REFRESH_DETIK * 1000); }
-  document.addEventListener("visibilitychange", function(){ if (!document.hidden) checkUpdate(); });
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden){ syncClock(); checkUpdate(); tick(); } });
 
   </script>
 </body>
